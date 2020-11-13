@@ -191,7 +191,9 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
             {
                 MessageData md;
                 NewMessageData(&md, topicName, message);
-                c->messageHandlers[i].fp(&md);
+/* SWISTART */
+                c->messageHandlers[i].fp(&md, c->messageHandlers[i].contextPtr);
+/* SWISTOP */
                 rc = SUCCESS;
             }
         }
@@ -209,14 +211,18 @@ int deliverMessage(MQTTClient* c, MQTTString* topicName, MQTTMessage* message)
 }
 
 
-int keepalive(MQTTClient* c)
+/* SWISTART */
+int keepalive(MQTTClient* c, bool override)
+/* SWISTOP */
 {
     int rc = SUCCESS;
 
     if (c->keepAliveInterval == 0)
         goto exit;
 
-    if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received))
+/* SWISTART */
+    if (TimerIsExpired(&c->last_sent) || TimerIsExpired(&c->last_received) || override)
+/* SWISTOP */
     {
         if (c->ping_outstanding)
             rc = FAILURE; /* PINGRESP not received in keepalive interval */
@@ -324,7 +330,9 @@ int cycle(MQTTClient* c, Timer* timer)
             break;
     }
 
-    if (keepalive(c) != SUCCESS) {
+/* SWISTART */
+    if (keepalive(c, false) != SUCCESS) {
+/* SWISTOP */
         //check only keepalive FAILURE status so that previous FAILURE status can be considered as FAULT
         rc = FAILURE;
     }
@@ -472,7 +480,9 @@ int MQTTConnect(MQTTClient* c, MQTTPacket_connectData* options)
 }
 
 
-int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler messageHandler)
+/* SWISTART */
+int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler messageHandler, void* contextPtr)
+/* SWISTOP */
 {
     int rc = FAILURE;
     int i = -1;
@@ -486,6 +496,9 @@ int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler
             {
                 c->messageHandlers[i].topicFilter = NULL;
                 c->messageHandlers[i].fp = NULL;
+/* SWISTART */
+                c->messageHandlers[i].contextPtr = NULL;
+/* SWISTOP */
             }
             rc = SUCCESS; /* return i when adding new subscription */
             break;
@@ -508,14 +521,19 @@ int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler
         {
             c->messageHandlers[i].topicFilter = topicFilter;
             c->messageHandlers[i].fp = messageHandler;
+/* SWISTART */
+            c->messageHandlers[i].contextPtr = contextPtr;
+/* SWISTOP */
         }
     }
     return rc;
 }
 
 
+/* SWISTART */
 int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qos,
-       messageHandler messageHandler, MQTTSubackData* data)
+       messageHandler messageHandler, void* contextPtr, MQTTSubackData* data)
+/* SWISTOP */
 {
     int rc = FAILURE;
     Timer timer;
@@ -546,7 +564,9 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
         if (MQTTDeserialize_suback(&mypacketid, 1, &count, (int*)&data->grantedQoS, c->readbuf, c->readbuf_size) == 1)
         {
             if (data->grantedQoS != 0x80)
-                rc = MQTTSetMessageHandler(c, topicFilter, messageHandler);
+/* SWISTART */
+                rc = MQTTSetMessageHandler(c, topicFilter, messageHandler, contextPtr);
+/* SWISTOP */
         }
     }
     else
@@ -562,11 +582,15 @@ exit:
 }
 
 
+/* SWISTART */
 int MQTTSubscribe(MQTTClient* c, const char* topicFilter, enum QoS qos,
-       messageHandler messageHandler)
+       messageHandler messageHandler, void* contextPtr)
+/* SWISTOP */
 {
     MQTTSubackData data;
-    return MQTTSubscribeWithResults(c, topicFilter, qos, messageHandler, &data);
+/* SWISTART */
+    return MQTTSubscribeWithResults(c, topicFilter, qos, messageHandler, contextPtr, &data);
+/* SWISTOP */
 }
 
 
@@ -597,8 +621,10 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
         unsigned short mypacketid;  // should be the same as the packetid above
         if (MQTTDeserialize_unsuback(&mypacketid, c->readbuf, c->readbuf_size) == 1)
         {
+/* SWISTART */
             /* remove the subscription message handler associated with this topic, if there is one */
-            MQTTSetMessageHandler(c, topicFilter, NULL);
+            MQTTSetMessageHandler(c, topicFilter, NULL, NULL);
+/* SWISTOP */
         }
     }
     else
@@ -698,3 +724,14 @@ int MQTTDisconnect(MQTTClient* c)
 #endif
     return rc;
 }
+
+/* SWISTART */
+/** MQTT KeepAlive - send an MQTT keep-alive packet
+ *  @param client - the client object to use
+ *  @return success code
+ */
+int MQTTKeepAlive(MQTTClient* c)
+{
+    return (keepalive(c, true));
+}
+/* SWISTOP */

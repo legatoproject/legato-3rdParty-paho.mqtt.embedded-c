@@ -100,7 +100,9 @@ typedef struct MQTTSubackData
     enum QoS grantedQoS;
 } MQTTSubackData;
 
-typedef void (*messageHandler)(MessageData*);
+/* SWISTART */
+typedef void (*messageHandler)(MessageData*, void*);
+/* SWISTOP */
 
 typedef struct MQTTClient
 {
@@ -118,7 +120,10 @@ typedef struct MQTTClient
     struct MessageHandlers
     {
         const char* topicFilter;
-        void (*fp) (MessageData*);
+/* SWISTART */
+        void (*fp) (MessageData*, void*);
+        void* contextPtr;
+/* SWISTOP */
     } messageHandlers[MAX_MESSAGE_HANDLERS];      /* Message handlers are indexed by subscription topic */
 
     void (*defaultMessageHandler) (MessageData*);
@@ -167,30 +172,39 @@ DLLExport int MQTTConnect(MQTTClient* client, MQTTPacket_connectData* options);
  */
 DLLExport int MQTTPublish(MQTTClient* client, const char*, MQTTMessage*);
 
+/* SWISTART */
 /** MQTT SetMessageHandler - set or remove a per topic message handler
  *  @param client - the client object to use
  *  @param topicFilter - the topic filter set the message handler for
  *  @param messageHandler - pointer to the message handler function or NULL to remove
+ *  @param contextPtr - client context pointer
  *  @return success code
  */
-DLLExport int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler messageHandler);
+DLLExport int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler messageHandler, void* contextPtr);
+/* SWISTOP */
 
+/* SWISTART */
 /** MQTT Subscribe - send an MQTT subscribe packet and wait for suback before returning.
  *  @param client - the client object to use
  *  @param topicFilter - the topic filter to subscribe to
  *  @param message - the message to send
+ *  @param contextPtr - client context pointer
  *  @return success code
  */
-DLLExport int MQTTSubscribe(MQTTClient* client, const char* topicFilter, enum QoS, messageHandler);
+DLLExport int MQTTSubscribe(MQTTClient* client, const char* topicFilter, enum QoS, messageHandler, void* contextPtr);
+/* SWISTOP */
 
+/* SWISTART */
 /** MQTT Subscribe - send an MQTT subscribe packet and wait for suback before returning.
  *  @param client - the client object to use
  *  @param topicFilter - the topic filter to subscribe to
  *  @param message - the message to send
+ *  @param contextPtr - client context pointer
  *  @param data - suback granted QoS returned
  *  @return success code
  */
-DLLExport int MQTTSubscribeWithResults(MQTTClient* client, const char* topicFilter, enum QoS, messageHandler, MQTTSubackData* data);
+DLLExport int MQTTSubscribeWithResults(MQTTClient* client, const char* topicFilter, enum QoS, messageHandler, void* contextPtr, MQTTSubackData* data);
+/* SWISTOP */
 
 /** MQTT Subscribe - send an MQTT unsubscribe packet and wait for unsuback before returning.
  *  @param client - the client object to use
@@ -204,6 +218,14 @@ DLLExport int MQTTUnsubscribe(MQTTClient* client, const char* topicFilter);
  *  @return success code
  */
 DLLExport int MQTTDisconnect(MQTTClient* client);
+
+/* SWISTART */
+/** MQTT KeepAlive - send an MQTT keep-alive packet
+ *  @param client - the client object to use
+ *  @return success code
+ */
+DLLExport int MQTTKeepAlive(MQTTClient* client);
+/* SWISTOP */
 
 /** MQTT Yield - MQTT background
  *  @param client - the client object to use
